@@ -27,7 +27,7 @@ pip install magenta
 ## Usage
 
 ```bash
-git clone <AI-music.link>
+git clone https://github.com/Vickie1125/AI-Music.git
 cd path_to_your_project
 python flask_server.py
 open index.html
