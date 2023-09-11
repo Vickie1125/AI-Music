@@ -15,6 +15,8 @@
         <script src="js/MIDI/Player.js" type="text/javascript"></script>
         <script src="js/MIDI/Loader.js" type="text/javascript"></script>
 
+        <script src="js/MIDIWriter/midiwriter.js" type="text/javascript"></script>
+
         <script src="js/Window/DOMLoader.script.js" type="text/javascript"></script>
 
         <!-- jasmid package -->
@@ -55,9 +57,8 @@
 
         </style>    
     </head>
-    <body>        
+    <body>
         <script type="text/javascript">
-
             // Begin MIDI loader widger
             MIDI.loader = new widgets.Loader({
                 message: "Loading: Soundfont..."
@@ -89,11 +90,16 @@
                 this.stop = function()
                     {
                         MIDI.Player.stop();
+                    };
+                this.predict = function()
+                    {
+                        sendDataToServer();
                     }
             };
             
 
-            var keyState = Object.freeze ({unpressed: {}, note_on: {}, pressed:{}, note_off:{} });
+            var keyState =
+                Object.freeze ({unpressed: {}, note_on: {}, pressed:{}, note_off:{} });
 
 
             var scene = new THREE.Scene();
@@ -317,11 +323,12 @@
                 //-----------------------------------
 
                 if( note == -1 ) return -1;
-
+                // return ("_" + (note));
                 return ("_" + (note + controls.octave*12));
 
             }
 
+            var pressedKeys = [];
             window.onkeydown = function(ev)
             {
                 if (keys_down[ev.keyCode] != true)
@@ -331,7 +338,12 @@
                     {
                         key_status(note, keyState.note_on);
                         keys_down[ev.keyCode] = true;                     
-
+                        //Add the note to the start of the pressedkeys array
+                        pressedKeys.unshift(note);
+                        //if the array's length is more than 25, remove the last note
+                        if(pressedKeys.length>25){
+                            pressedKeys.pop();
+                        }
                         var delay = 0; // play one note every quarter second
                         var note = parseInt(note.substr(1))+21; // the MIDI note
                         var velocity = 127; // how hard the note hits
@@ -339,7 +351,39 @@
                         MIDI.noteOn(0, note, velocity, delay);                        
                     }
                 }            
-            }            
+            }
+
+            function sendDataToServer() {
+                fetch("http://localhost:5000/create_midi", {
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Accept":"application/json",
+                        "Access-Control-Allow-Methods":"DELETE, POST, GET, OPTIONS",
+                        "Access-Control-Allow-Headers":"Content-Type, Authorization, X-Requested-With",
+                    },
+                    "body": JSON.stringify({pressedKeys: pressedKeys}),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'MIDI file successfully created!') {
+                        // Do something for a successful response
+                        console.log("Success:", data.message);
+                        // Other actions like updating the UI
+                        MIDI.Player.stop();
+                        MIDI.Player.loadFile("midi/generated_music.mid", MIDI.Player.start);
+                        MIDI.Player.resume();
+                        pressedKeys = [];
+                    } else {
+                        // Do something different for an unexpected message
+                        console.log("Received unexpected message:", data.message);
+                        // Other actions
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            }
 
             window.onkeyup = function(ev)
             {
@@ -382,6 +426,8 @@
                     // Close the MIDI loader widget and open the GUI                                        
                     MIDI.loader.stop();
                     songsToFiles ={
+                                    "predicted music": "generated_music.mid",
+                                    "star": "twinkle_twinkle.mid",
                                     "Game Of Thrones Theme, Ramin Djawadi": "game_of_thrones.mid",
                                     "Mario Overworld Theme (Super Mario Bros 3), Koji Kondo": "mario_-_overworld_theme.mid",                                    
                                     "He's a Pirate (Pirates of the Caribbean), Klaus Badelt" : "hes_a_pirate.mid",
@@ -429,11 +475,11 @@
                                             var note = keyCode_to_note(keyCode);
                                             key_status(note, keyState.note_off);
                                         }
-                                        
                                     });
 
                     gui.add(controls, 'play');
                     gui.add(controls, 'stop');
+                    gui.add(controls, 'predict');
                 });                               
             };            
 
@@ -467,9 +513,9 @@
         <a href="http://threejs.org" target="_blank">three.js</a> - 3D Piano player demo<br />
         Controls: Keyboard to play, Mouse to orbit<br/>
         Uses <a href="http://mudcu.be/midi-js/" target="_blank">MIDI.js</a> Source code available on <a href="https://github.com/reality3d/3d-piano-player" target="_blank">Github</a><br/>
-        <a href="http://www.twitter.com/reality3d/" target="_blank">Borja Morales</a>
-		<a href="https://twitter.com/share" class="twitter-share-button" data-url="http://www.rgba.org/r3d/3d-piano-player/" data-via="reality3d">Tweet</a>
+        <a href="https://instagram.com/swqiiiiiing?igshid=NTc4MTIwNjQ2YQ==" target="_blank">Vickie Sun</a>
+<!--		<a href="https://twitter.com/share" class="twitter-share-button" data-url="http://www.rgba.org/r3d/3d-piano-player/" data-via="reality3d">Tweet</a>-->
     </div>
-	<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>	
+	<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
     </body>
 </html>
